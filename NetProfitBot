@@ -1,0 +1,34 @@
+using System;
+using System.Linq;
+using cAlgo.API;
+using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
+using cAlgo.Indicators;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.SingaporeStandardTime, AccessRights = AccessRights.None)]
+    public class NetProfit : Robot
+    {
+      [Parameter("Net Profit Close", DefaultValue = 5000)]
+      public int NetProfitClose { get; set; }
+      
+      protected override void OnTick()
+      {
+        var netProfit = 0.0;
+
+            foreach (var openedPosition in Positions)
+            {
+                netProfit += openedPosition.NetProfit;
+            }
+            if ((netProfit >= NetProfitClose))
+            {
+                foreach (var position in Positions)
+                {
+                    ClosePositionAsync(position);
+                }
+            }
+        }
+      }
+}
+        
