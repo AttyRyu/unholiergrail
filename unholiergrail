@@ -60,13 +60,15 @@ namespace cAlgo.Robots
             //foreach (var position in Positions)
             //{
             //    if (((Positions.Find("", Symbol, TradeType.Buy) != null) && (Positions.Find("", Symbol, TradeType.Sell) == null)))
-            //  {
-            //    ExecuteMarketOrderAsync(TradeType.Sell, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
-            //}
-            //if (((Positions.Find("", Symbol, TradeType.Buy) == null) && (Positions.Find("", Symbol, TradeType.Sell) != null)))
-            //{
-            //  ExecuteMarketOrderAsync(TradeType.Buy, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
-            //}
+            //    {
+            //        CancelPendingOrders();
+            //ExecuteMarketOrderAsync(TradeType.Sell, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
+            //    }
+            //    if (((Positions.Find("", Symbol, TradeType.Buy) == null) && (Positions.Find("", Symbol, TradeType.Sell) != null)))
+            //    {
+            //CancelPendingOrders();
+            //ExecuteMarketOrderAsync(TradeType.Buy, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
+            //    }
             //}
             var netProfit = 0.0;
 
