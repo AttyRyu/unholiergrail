@@ -1,0 +1,355 @@
+using System;
+using System.Linq;
+using cAlgo.API;
+using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
+using cAlgo.Indicators;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.SingaporeStandardTime, AccessRights = AccessRights.None)]
+    public class UnholyGrailwithAutorefreshUnevenWaves : Robot
+    {
+        [Parameter("Stop Loss (pips)", DefaultValue = 40000)]
+        public int StopLossInPips { get; set; }
+
+        [Parameter("Take Profit (pips)", DefaultValue = 40000)]
+        public int TakeProfitInPips { get; set; }
+
+        [Parameter("How Many Waves?", DefaultValue = 1)]
+        public int Waves { get; set; }
+
+        [Parameter("SL Trigger Pips", DefaultValue = 10)]
+        public int WaveInterval { get; set; }
+
+        [Parameter("Protective SL Add Pips", DefaultValue = 0)]
+        public int PSLAddPips { get; set; }
+
+        [Parameter("Volume", DefaultValue = 100000)]
+        public int Volume { get; set; }
+
+        [Parameter("Net Loss Close", DefaultValue = -5000)]
+        public int NetLossClose { get; set; }
+
+        [Parameter("Net Profit Close", DefaultValue = 5000)]
+        public int NetProfitClose { get; set; }
+
+        [Parameter("Wave Pip Interval 1", DefaultValue = 30)]
+        public int WaveInterval1 { get; set; }
+
+        [Parameter("Wave Pip Interval 2", DefaultValue = 40)]
+        public int WaveInterval2 { get; set; }
+
+        [Parameter("Wave Pip Interval 3", DefaultValue = 50)]
+        public int WaveInterval3 { get; set; }
+
+        [Parameter("Wave Pip Interval 4", DefaultValue = 60)]
+        public int WaveInterval4 { get; set; }
+
+        [Parameter("Wave Pip Interval 5", DefaultValue = 70)]
+        public int WaveInterval5 { get; set; }
+
+        [Parameter("Wave Pip Interval 6", DefaultValue = 80)]
+        public int WaveInterval6 { get; set; }
+
+        [Parameter("Wave Pip Interval 7", DefaultValue = 90)]
+        public int WaveInterval7 { get; set; }
+
+        [Parameter("Wave Pip Interval 8", DefaultValue = 100)]
+        public int WaveInterval8 { get; set; }
+
+        [Parameter("Wave Pip Interval 9", DefaultValue = 110)]
+        public int WaveInterval9 { get; set; }
+
+        [Parameter("Wave Pip Interval 10", DefaultValue = 120)]
+        public int WaveInterval10 { get; set; }
+
+        [Parameter("Wave Pip Interval 11", DefaultValue = 130)]
+        public int WaveInterval11 { get; set; }
+
+        protected override void OnBar()
+        {
+            if ((Positions.Find("", Symbol, TradeType.Buy) == null) && (Positions.Find("", Symbol, TradeType.Sell) == null) && (Server.Time.Hour != 3) && (Server.Time.Hour != 4) && (Server.Time.Hour != 5) && (Server.Time.Hour != 6) && (Server.Time.Hour != 7) && (Server.Time.Hour != 8))
+            {
+                CancelPendingOrders();
+                CreateWaves1(TradeType.Buy);
+                CreateWaves1(TradeType.Sell);
+                CreateWaves2(TradeType.Buy);
+                CreateWaves2(TradeType.Sell);
+                CreateWaves3(TradeType.Buy);
+                CreateWaves3(TradeType.Sell);
+                CreateWaves4(TradeType.Buy);
+                CreateWaves4(TradeType.Sell);
+                CreateWaves5(TradeType.Buy);
+                CreateWaves5(TradeType.Sell);
+                CreateWaves6(TradeType.Buy);
+                CreateWaves6(TradeType.Sell);
+                CreateWaves7(TradeType.Buy);
+                CreateWaves7(TradeType.Sell);
+                CreateWaves8(TradeType.Buy);
+                CreateWaves8(TradeType.Sell);
+                CreateWaves9(TradeType.Buy);
+                CreateWaves9(TradeType.Sell);
+                CreateWaves10(TradeType.Buy);
+                CreateWaves10(TradeType.Sell);
+                CreateWaves11(TradeType.Buy);
+                CreateWaves11(TradeType.Sell);
+            }
+            if ((Server.Time.Hour == 3) || (Server.Time.Hour == 4) || (Server.Time.Hour == 5) || (Server.Time.Hour == 6) || (Server.Time.Hour == 7) || (Server.Time.Hour == 8))
+            {
+                CancelPendingOrders();
+            }
+            //foreach (var position in Positions)
+            //{
+            //  if ((Server.Time.DayOfWeek == DayOfWeek.Friday) && (Server.Time.Hour == 2))
+            //  {
+            //      ClosePositionAsync(position);
+            //      CancelPendingOrders();
+            //  }
+            //}
+
+        }
+
+        protected override void OnTick()
+        {
+
+            //foreach (var position in Positions)
+            //{
+            //    if (((Positions.Find("", Symbol, TradeType.Buy) != null) && (Positions.Find("", Symbol, TradeType.Sell) != null)))
+            //    {
+            //        ClosePositionAsync(position);
+            //        CancelPendingOrders();
+            //    }
+            //}
+            //foreach (var position in Positions)
+            //{
+            //    if (((Positions.Find("", Symbol, TradeType.Buy) != null) && (Positions.Find("", Symbol, TradeType.Sell) == null)))
+            //    {
+            //        CancelPendingOrders();
+            //ExecuteMarketOrderAsync(TradeType.Sell, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
+            //    }
+            //    if (((Positions.Find("", Symbol, TradeType.Buy) == null) && (Positions.Find("", Symbol, TradeType.Sell) != null)))
+            //    {
+            //CancelPendingOrders();
+            //ExecuteMarketOrderAsync(TradeType.Buy, Symbol, Volume, "", StopLossInPips, TakeProfitInPips, null);
+            //    }
+            //}
+            var netProfit = 0.0;
+
+            foreach (var openedPosition in Positions)
+            {
+                netProfit += openedPosition.NetProfit;
+            }
+            if ((netProfit <= NetLossClose))
+            {
+                foreach (var position in Positions)
+                {
+                    ClosePositionAsync(position);
+                    CancelPendingOrders();
+                }
+            }
+            if ((netProfit >= NetProfitClose))
+            {
+                foreach (var position in Positions)
+                {
+                    ClosePositionAsync(position);
+                    CancelPendingOrders();
+                }
+            }
+            foreach (Position OpenPosition in Positions.FindAll("", Symbol))
+            {
+                double ProtectiveStopPrice = GetProtectiveStopPrice(OpenPosition);
+
+                if (ProtectiveStopPrice > 0)
+                {
+                    Print("Moved ProtectiveStopLoss to: " + ProtectiveStopPrice);
+                    ModifyPosition(OpenPosition, ProtectiveStopPrice, OpenPosition.TakeProfit);
+                }
+            }
+        }
+
+        private void CreateWaves1(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval1 * Symbol.PipSize : TargetPrice - WaveInterval1 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves2(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval2 * Symbol.PipSize : TargetPrice - WaveInterval2 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+
+
+
+        private void CreateWaves3(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval3 * Symbol.PipSize : TargetPrice - WaveInterval3 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+
+        private void CreateWaves4(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval4 * Symbol.PipSize : TargetPrice - WaveInterval4 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves5(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval5 * Symbol.PipSize : TargetPrice - WaveInterval5 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves6(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval6 * Symbol.PipSize : TargetPrice - WaveInterval6 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves7(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval7 * Symbol.PipSize : TargetPrice - WaveInterval7 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves8(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval8 * Symbol.PipSize : TargetPrice - WaveInterval8 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves9(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval9 * Symbol.PipSize : TargetPrice - WaveInterval9 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves10(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval10 * Symbol.PipSize : TargetPrice - WaveInterval10 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CreateWaves11(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval11 * Symbol.PipSize : TargetPrice - WaveInterval11 * Symbol.PipSize;
+                PlaceStopOrderAsync(type, Symbol, Volume, TargetPrice, "", StopLossInPips, TakeProfitInPips, null);
+
+            }
+        }
+
+        private void CancelPendingOrders()
+        {
+            foreach (var order in PendingOrders)
+            {
+                if (order.SymbolCode == Symbol.Code)
+                {
+                    CancelPendingOrder(order);
+                }
+            }
+        }
+
+        private double GetProtectiveStopPrice(Position OpenPosition)
+        {
+            double PipGain = OpenPosition.TradeType == TradeType.Buy ? (Symbol.Ask - OpenPosition.EntryPrice) / Symbol.PipSize : (OpenPosition.EntryPrice - Symbol.Bid) / Symbol.PipSize;
+            int Milestone = (int)(PipGain % WaveInterval);
+
+            for (int i = 0; i < 2 && Milestone > 0; i++)
+            {
+                if (PipGain >= WaveInterval * Milestone)
+                {
+                    double ProtectiveStopSize = (((Milestone - 1) * WaveInterval) + PSLAddPips) * Symbol.PipSize;
+
+                    if (OpenPosition.TradeType == TradeType.Buy)
+                    {
+                        double ProtectiveStopPrice = OpenPosition.EntryPrice + ProtectiveStopSize;
+
+                        if (OpenPosition.StopLoss == null || OpenPosition.StopLoss < ProtectiveStopPrice)
+                        {
+                            return ProtectiveStopPrice;
+                        }
+                    }
+                    else if (OpenPosition.TradeType == TradeType.Sell)
+                    {
+                        double ProtectiveStopPrice = OpenPosition.EntryPrice - ProtectiveStopSize;
+
+                        if (OpenPosition.StopLoss == null || OpenPosition.StopLoss > ProtectiveStopPrice)
+                        {
+                            return ProtectiveStopPrice;
+                        }
+                    }
+                }
+
+                Milestone--;
+            }
+
+            return 0;
+        }
+    }
+}
