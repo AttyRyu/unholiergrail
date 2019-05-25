@@ -1,0 +1,144 @@
+using System;
+using System.Linq;
+using cAlgo.API;
+using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
+using cAlgo.Indicators;
+using System.Collections;
+using System.IO;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
+    public class DaveCbot : Robot
+    {
+
+        //[Parameter("Source")]
+        //public DataSeries Source { get; set; }
+
+        //[Parameter("SRAT Period", DefaultValue = 14)]
+        //public int SRAtPeriod { get; set; }
+
+        Stack daveStack;
+
+        [Parameter("Periods", DefaultValue = 100)]
+        public int Periods { get; set; }
+
+        [Parameter("Show Extreme H/L", DefaultValue = true)]
+        public bool ShowExtremeHL { get; set; }
+
+        [Parameter("Show Day H/L", DefaultValue = true)]
+        public bool ShowDayHL { get; set; }
+
+        [Parameter("Required Hits", DefaultValue = 5)]
+        public int RequiredHits { get; set; }
+
+        [Parameter("Zone Size", DefaultValue = 10)]
+        public int ZoneSize { get; set; }
+
+        [Parameter("Max Lines In Zone", DefaultValue = 3)]
+        public int MaxLinesInZone { get; set; }
+
+
+        private SRAtPrice SRAt;
+
+
+        protected override void OnStart()
+        {
+            // Put your initialization logic here
+            SRAt = Indicators.GetIndicator<SRAtPrice>(Periods, ShowExtremeHL, ShowDayHL, RequiredHits, ZoneSize, MaxLinesInZone);
+        }
+
+        protected override void OnTick()
+        {
+
+
+            // Put your core logic here
+            //Print("{0}", SRAt.SRStyle);
+            //Print(SRAt.SRStyle.GetType());
+            //Print(Convert.ToDouble(SRAt.SRStyle));
+            //Print(double.IsNaN(SRAt.SRStyle));
+            //Print(Convert.ToDouble(Symbol.Ask));
+            //Print(Symbol.Ask);
+
+            //Print(SRAt.SRStyle.Count);
+
+            //Print(SRAt.SRStyle.LastValue);
+
+
+
+            // for array
+            //daveStack = SRAt.myStack;
+
+            //Print(daveStack);
+
+            //foreach (var itm in daveStack)
+            //    Print(itm);
+
+            //end array
+
+            //double valSRat = SRAt.STRAResult;
+            //Print(SRAt.STRAResult);
+            int counter = 0;
+            string line;
+
+            using (StreamReader sr = new StreamReader("C:/Users/David Aman/Desktop/Forex/results.log"))
+            {
+                // Read the stream to a string, and write the string to the console.
+
+                while ((line = sr.ReadLine()) != null)
+                {
+                    Print(line);
+                    //call your function here
+
+                    double up = Convert.ToDouble(line);
+                    if (Symbol.Ask >= up)
+                    {
+                        //    Print(Symbol.Ask);
+                        //    Print(SRAt.SRStyle.Count);
+                        //    Print(SRAt.SRStyle);
+                        Print("yehey");
+                    }
+                    else
+                    {
+                        Print("No Good");
+                    }
+
+                    counter++;
+                }
+
+                //String line = sr.ReadLine();
+                //Print(line);
+                //double up = Convert.ToDouble(line);
+
+                //for calculations
+                //SRAt.Calculate(MarketSeries.Open.Count - 1);
+                //var unused = SRAt.SRStyle.LastValue;
+                //double up = SRAt.SRStyle.LastValue;
+                ////Print(Symbol.Ask);
+                //Print(unused);
+
+
+                //if (Symbol.Ask >= up)
+                //{
+                //    //    Print(Symbol.Ask);
+                //    //    Print(SRAt.SRStyle.Count);
+                //    //    Print(SRAt.SRStyle);
+                //    Print("yehey");
+                //}
+                //else
+                //{
+                //    Print("No Good");
+                //}
+
+
+            }
+
+
+
+
+
+        }
+
+    }
+}
