@@ -13,7 +13,7 @@ namespace cAlgo
     public class SRAtPrice : Indicator
     {
 
-
+        public double val;
         public Stack myStack;
         public double extremeHigh = 0;
         public double extremeLow = 0;
@@ -112,9 +112,30 @@ namespace cAlgo
 
                 this.ChartObjects.RemoveAllObjects();
 
+                myStack = new Stack();
+
                 foreach (var price in this.prices.Keys)
                 {
                     this.RenderSRIfRequred(price, this.prices[price]);
+                }
+
+
+
+                using (StreamWriter outputFile = new StreamWriter("C:/Users/David Aman/Desktop/Forex/results.log"))
+                {
+
+                    foreach (var itm in myStack)
+                        outputFile.WriteLine(itm);
+                    //Print(itm);
+                    //outputFile.WriteLine("SR :" + itm);
+
+                    Print("extremeHigh :" + this.extremeHigh);
+                    val = this.extremeHigh + 0.0003;
+
+                    Print(val);
+                    Print("extremeLow :" + this.extremeLow);
+                    outputFile.WriteLine(this.extremeHigh);
+                    outputFile.WriteLine(this.extremeLow);
                 }
 
 
@@ -137,7 +158,8 @@ namespace cAlgo
             }
         }
 
-        public void RenderSRIfRequred(double price, int count)
+
+        private void RenderSRIfRequred(double price, int count)
         {
             if (count < this.RequiredHits)
             {
@@ -151,23 +173,17 @@ namespace cAlgo
                     if (range.LinesRendered != this.MaxLinesInZone)
                     {
                         range.LinesRendered++;
-
-                        //edited for price
-                        using (StreamWriter outputFile = new StreamWriter("C:/Users/David Aman/Desktop/Forex/results.log"))
-                        {
-                            Print(price);
-                            STRAResult = price;
-                            //File.WriteAllText("C:/results.txt", STRAResult.ToString());
-                            outputFile.WriteLine(STRAResult);
-                        }
-
-
+                        //Print(price);
+                        myStack.Push(price);
                         this.DrawSR(price);
                     }
                     return;
                 }
             }
         }
+
+
+
 
         public void AddOrUpdatePrice(double priceValue)
         {
