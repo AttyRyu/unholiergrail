@@ -19,7 +19,7 @@ namespace cAlgo.Robots
         //[Parameter("SRAT Period", DefaultValue = 14)]
         //public int SRAtPeriod { get; set; }
 
-        Stack daveStack;
+        //Stack daveStack;
 
         [Parameter("Periods", DefaultValue = 100)]
         public int Periods { get; set; }
@@ -88,11 +88,25 @@ namespace cAlgo.Robots
 
                 while ((line = sr.ReadLine()) != null)
                 {
-                    Print(line);
+                    double upmin = 0;
+                    double upmax = 0;
+                    //bool = Checkit = false;
+
+                    //line = sr.ReadLine()
+                    //Print(line);
                     //call your function here
 
                     double up = Convert.ToDouble(line);
-                    if (Symbol.Ask >= up)
+                    upmin = up - 0.0003;
+                    upmax = up + 0.0003;
+
+
+                    //if (Symbol.Ask == up)
+
+                    //Checkit=CheckRange(Symbol.Ask,upmin,upmax);
+
+
+                    if (Symbol.Ask > upmin && Symbol.Ask < upmax)
                     {
                         //    Print(Symbol.Ask);
                         //    Print(SRAt.SRStyle.Count);
@@ -137,8 +151,11 @@ namespace cAlgo.Robots
 
 
 
-
         }
+
+
+
+
 
     }
 }
