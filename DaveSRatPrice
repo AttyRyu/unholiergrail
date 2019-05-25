@@ -1,0 +1,424 @@
+using System;
+using System.Collections.Generic;
+using cAlgo.API;
+using cAlgo.API.Internals;
+using cAlgo.API.Indicators;
+using cAlgo.Indicators;
+
+namespace cAlgo
+{
+    [Indicator("Support and Resistance At Price", IsOverlay = true, AccessRights = AccessRights.None)]
+    public class SRAtPrice : Indicator
+    {
+        public double extremeHigh = 0;
+        public double extremeLow = 0;
+        public double dayHi = 0;
+        public double dayLo = 0;
+        public SortedList<double, int> prices = new SortedList<double, int>();
+        public IList<Zone> zones = new List<Zone>();
+
+        public const string ExtremeHighName = "ExtremeHigh";
+        public const string ExtremeLowName = "ExtremeLow";
+        public const string DayHighName = "DayHigh";
+        public const string DayLowName = "DayLow";
+
+        [Parameter("Periods", DefaultValue = 100)]
+        public int Periods { get; set; }
+
+        [Parameter("Show Extreme H/L", DefaultValue = true)]
+        public bool ShowExtremeHL { get; set; }
+
+        [Parameter("Show Day H/L", DefaultValue = true)]
+        public bool ShowDayHL { get; set; }
+
+        [Parameter("Required Hits", DefaultValue = 5)]
+        public int RequiredHits { get; set; }
+
+        [Parameter("Zone Size", DefaultValue = 10)]
+        public int ZoneSize { get; set; }
+
+        [Parameter("Max Lines In Zone", DefaultValue = 3)]
+        public int MaxLinesInZone { get; set; }
+
+        [Output("Extreme H/L Style", Color = Colors.Red, LineStyle = LineStyle.DotsVeryRare)]
+        public IndicatorDataSeries ExtremeHLStyle { get; set; }
+
+        [Output("Day H/L Style", Color = Colors.Blue, LineStyle = LineStyle.DotsVeryRare)]
+        public IndicatorDataSeries DayHLStyle { get; set; }
+
+        [Output("S/R Style", Color = Colors.Orange, LineStyle = LineStyle.DotsVeryRare)]
+        public IndicatorDataSeries SRStyle { get; set; }
+
+        //public double STRAResult;
+
+		
+		
+		
+		
+		
+		
+		
+		
+        public override void Calculate(int index)
+        {
+            if (this.IsLastBar)
+            {
+                var currentOpenDate = this.MarketSeries.OpenTime[index].Date;
+                var earliest = index - this.Periods;
+				
+				
+				
+                for (var i = index; i >= earliest; i--)
+                {
+                    if (i >= 0)
+                    {
+                        var high = this.MarketSeries.High[i];
+                        var nextHigh = this.MarketSeries.High[i + 1];
+                        var low = this.MarketSeries.Low[i];
+                        var nextLow = this.MarketSeries.Low[i + 1];
+                        this.extremeHigh = Math.Max(high, this.extremeHigh);
+                        this.extremeLow = this.extremeLow == 0 ? low : Math.Min(low, this.extremeLow);
+
+                        if (this.TimeFrame < TimeFrame.Daily)
+                        {
+                            if (this.MarketSeries.OpenTime[i].Date == currentOpenDate)
+                            {
+                                this.dayHi = Math.Max(high, this.dayHi);
+                                this.dayLo = this.dayLo == 0 ? low : Math.Min(low, this.dayLo);
+                            }
+                        }
+
+                        if (nextHigh <= high)
+                        {
+                            this.AddOrUpdatePrice(high);
+                        }
+
+                        if (nextLow >= low)
+                        {
+                            this.AddOrUpdatePrice(low);
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+				
+				
+				
+				
+
+                this.zones.Clear();
+                var rangePipSize = (this.Symbol.PipSize * (double)this.ZoneSize);
+                for (var i = this.extremeLow + rangePipSize; i < this.extremeHigh - rangePipSize; i += rangePipSize + this.Symbol.PipSize)
+                {
+                    this.zones.Add(new Zone 
+                    {
+                        Start = i,
+                        End = i + rangePipSize,
+                        LinesRendered = 0
+                    });
+                }
+				
+				
+				
+				
+				
+
+                this.ChartObjects.RemoveAllObjects();
+
+				
+				
+				
+				
+				
+				
+                foreach (var price in this.prices.Keys)
+                {
+
+                    //Print(this.prices[price]);
+                    //Print(price);
+                    //Result[index] = price;
+                    //STRAResult = price;
+                    //Print(STRAResult);
+                    this.RenderSRIfRequred(price, this.prices[price]);
+                }
+				
+				
+				
+
+                if (this.ShowExtremeHL)
+                {
+                    this.DrawExtremeHigh();
+                    this.DrawExtremeLow();
+                }
+				
+				
+
+                if (this.TimeFrame < TimeFrame.Daily && this.ShowDayHL)
+                {
+                    this.DrawDayHigh();
+                    this.DrawDayLow();
+                }
+				
+				
+				
+            }
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void RenderSRIfRequred(double price, int count)
+        {
+            if (count < this.RequiredHits)
+            {
+                return;
+            }
+
+            foreach (var range in this.zones)
+            {
+                if (price >= range.Start && price <= range.End)
+                {
+                    if (range.LinesRendered != this.MaxLinesInZone)
+                    {
+                        range.LinesRendered++;
+                        //Print(price);
+                        this.DrawSR(price);
+                    }
+                    return;
+                }
+            }
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void AddOrUpdatePrice(double priceValue)
+        {
+            if (this.prices.ContainsKey(priceValue))
+            {
+                this.prices[priceValue]++;
+            }
+            else
+            {
+                this.prices.Add(priceValue, 1);
+            }
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawExtremeHigh()
+        {
+            //Print(this.extremeHigh);
+            this.DrawExtreme(ExtremeHighName, this.extremeHigh);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawExtremeLow()
+        {
+            this.DrawExtreme(ExtremeLowName, this.extremeLow);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawDayHigh()
+        {
+            this.DrawDay(DayHighName, this.dayHi);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawDayLow()
+        {
+            this.DrawDay(DayLowName, this.dayLo);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawExtreme(string name, double level)
+        {
+            var attribute = this.GetAttributeFrom<OutputAttribute>("ExtremeHLStyle");
+            this.ChartObjects.DrawHorizontalLine(name, level, attribute.Color, attribute.Thickness, attribute.LineStyle);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawDay(string name, double level)
+        {
+            var attribute = this.GetAttributeFrom<OutputAttribute>("DayHLStyle");
+            this.ChartObjects.DrawHorizontalLine(name, level, attribute.Color, attribute.Thickness, attribute.LineStyle);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public void DrawSR(double level)
+        {
+            //Print(level);
+            var attribute = this.GetAttributeFrom<OutputAttribute>("SRStyle");
+            this.ChartObjects.DrawHorizontalLine(string.Format("SR {0}", level), level, attribute.Color, attribute.Thickness, attribute.LineStyle);
+            //stop();
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public T GetAttributeFrom<T>(string propertyName)
+        {
+            var attrType = typeof(T);
+            var property = this.GetType().GetProperty(propertyName);
+            return (T)property.GetCustomAttributes(attrType, false).GetValue(0);
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public class Price
+        {
+            internal double Value { get; set; }
+            internal int Count { get; set; }
+        }
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        public class Zone
+        {
+            internal double Start { get; set; }
+            internal double End { get; set; }
+            internal int LinesRendered { get; set; }
+        }
+    }
+}
