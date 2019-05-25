@@ -1,31 +1,25 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using cAlgo.API;
-using cAlgo.API.Internals;
 using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
 using cAlgo.Indicators;
 using System.Collections;
 using System.IO;
 
-namespace cAlgo
+namespace cAlgo.Robots
 {
-    [Indicator("Support and Resistance At Price", IsOverlay = true, AccessRights = AccessRights.FullAccess)]
-    public class SRAtPrice : Indicator
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
+    public class DaveCbot : Robot
     {
 
+        //[Parameter("Source")]
+        //public DataSeries Source { get; set; }
 
-        public Stack myStack;
-        public double extremeHigh = 0;
-        public double extremeLow = 0;
-        public double dayHi = 0;
-        public double dayLo = 0;
-        public SortedList<double, int> prices = new SortedList<double, int>();
-        public IList<Zone> zones = new List<Zone>();
+        //[Parameter("SRAT Period", DefaultValue = 14)]
+        //public int SRAtPeriod { get; set; }
 
-        public const string ExtremeHighName = "ExtremeHigh";
-        public const string ExtremeLowName = "ExtremeLow";
-        public const string DayHighName = "DayHigh";
-        public const string DayLowName = "DayLow";
+        //Stack daveStack;
 
         [Parameter("Periods", DefaultValue = 100)]
         public int Periods { get; set; }
@@ -45,222 +39,123 @@ namespace cAlgo
         [Parameter("Max Lines In Zone", DefaultValue = 3)]
         public int MaxLinesInZone { get; set; }
 
-        [Output("Extreme H/L Style", Color = Colors.Red, LineStyle = LineStyle.DotsVeryRare)]
-        public IndicatorDataSeries ExtremeHLStyle { get; set; }
 
-        [Output("Day H/L Style", Color = Colors.Blue, LineStyle = LineStyle.DotsVeryRare)]
-        public IndicatorDataSeries DayHLStyle { get; set; }
+        private SRAtPrice SRAt;
 
-        [Output("S/R Style", Color = Colors.Orange, LineStyle = LineStyle.DotsVeryRare)]
-        public IndicatorDataSeries SRStyle { get; set; }
 
-        public double STRAResult;
-
-        public override void Calculate(int index)
+        protected override void OnStart()
         {
-            if (this.IsLastBar)
+            // Put your initialization logic here
+            SRAt = Indicators.GetIndicator<SRAtPrice>(Periods, ShowExtremeHL, ShowDayHL, RequiredHits, ZoneSize, MaxLinesInZone);
+        }
+
+        protected override void OnTick()
+        {
+
+
+            // Put your core logic here
+            //Print("{0}", SRAt.SRStyle);
+            //Print(SRAt.SRStyle.GetType());
+            //Print(Convert.ToDouble(SRAt.SRStyle));
+            //Print(double.IsNaN(SRAt.SRStyle));
+            //Print(Convert.ToDouble(Symbol.Ask));
+            //Print(Symbol.Ask);
+
+            //Print(SRAt.SRStyle.Count);
+
+            //Print(SRAt.SRStyle.LastValue);
+
+
+
+            // for array
+            //daveStack = SRAt.myStack;
+
+            //Print(daveStack);
+
+            //foreach (var itm in daveStack)
+            //    Print(itm);
+
+            //end array
+
+            //double valSRat = SRAt.STRAResult;
+            //Print(SRAt.STRAResult);
+            int counter = 0;
+            string line;
+
+            using (StreamReader sr = new StreamReader("C:/Users/David Aman/Desktop/Forex/results.log"))
             {
-                var currentOpenDate = this.MarketSeries.OpenTime[index].Date;
-                var earliest = index - this.Periods;
-                for (var i = index; i >= earliest; i--)
+                // Read the stream to a string, and write the string to the console.
+
+                while ((line = sr.ReadLine()) != null)
                 {
-                    if (i >= 0)
+                    double upmin = 0;
+                    double upmax = 0;
+                    //bool = Checkit = false;
+
+                    //line = sr.ReadLine()
+                    //Print(line);
+                    //call your function here
+
+                    double up = Convert.ToDouble(line);
+                    upmin = up - 0.0003;
+                    upmax = up + 0.0003;
+
+
+                    //if (Symbol.Ask == up)
+
+                    //Checkit=CheckRange(Symbol.Ask,upmin,upmax);
+
+
+                    if (Symbol.Ask > upmin && Symbol.Ask < upmax)
                     {
-                        var high = this.MarketSeries.High[i];
-                        var nextHigh = this.MarketSeries.High[i + 1];
-                        var low = this.MarketSeries.Low[i];
-                        var nextLow = this.MarketSeries.Low[i + 1];
-                        this.extremeHigh = Math.Max(high, this.extremeHigh);
-                        this.extremeLow = this.extremeLow == 0 ? low : Math.Min(low, this.extremeLow);
-
-                        if (this.TimeFrame < TimeFrame.Daily)
-                        {
-                            if (this.MarketSeries.OpenTime[i].Date == currentOpenDate)
-                            {
-                                this.dayHi = Math.Max(high, this.dayHi);
-                                this.dayLo = this.dayLo == 0 ? low : Math.Min(low, this.dayLo);
-                            }
-                        }
-
-                        if (nextHigh <= high)
-                        {
-                            this.AddOrUpdatePrice(high);
-                        }
-
-                        if (nextLow >= low)
-                        {
-                            this.AddOrUpdatePrice(low);
-                        }
+                        //    Print(Symbol.Ask);
+                        //    Print(SRAt.SRStyle.Count);
+                        //    Print(SRAt.SRStyle);
+                        Print("yehey");
                     }
                     else
                     {
-                        break;
-                    }
-                }
-
-                this.zones.Clear();
-                var rangePipSize = (this.Symbol.PipSize * (double)this.ZoneSize);
-                for (var i = this.extremeLow + rangePipSize; i < this.extremeHigh - rangePipSize; i += rangePipSize + this.Symbol.PipSize)
-                {
-                    this.zones.Add(new Zone 
-                    {
-                        Start = i,
-                        End = i + rangePipSize,
-                        LinesRendered = 0
-                    });
-                }
-
-                this.ChartObjects.RemoveAllObjects();
-
-                //yellow lines
-                //myStack = new Stack();
-                //StreamWriter sw = new StreamWriter("C:/Users/David Aman/Desktop/Forex/results.log");
-                //"C:/results.txt"
-				
-				//Change to your file path
-                using (StreamWriter outputFile = new StreamWriter("C:/Users/David Aman/Desktop/Forex/results.log"))
-                {
-
-                    foreach (var price in this.prices.Keys)
-                    {
-
-                        //Print(this.prices[price]);
-                        //Print(price);
-                        //Result[index] = price;
-
-                        STRAResult = price;
-                        //File.WriteAllText("C:/results.txt", STRAResult.ToString());
-                        outputFile.WriteLine(STRAResult);
-                        //sw.WriteLine(STRAResult);
-
-
-
-                        //myStack.Push(STRAResult);
-                        //Print(STRAResult);
-                        this.RenderSRIfRequred(price, this.prices[price]);
+                        Print("No Good");
                     }
 
+                    counter++;
                 }
 
+                //String line = sr.ReadLine();
+                //Print(line);
+                //double up = Convert.ToDouble(line);
 
-                //sw.close();
-                //uncomment for arrays
-                //foreach (var itm in myStack)
-                //    Print(itm);
-                //
+                //for calculations
+                //SRAt.Calculate(MarketSeries.Open.Count - 1);
+                //var unused = SRAt.SRStyle.LastValue;
+                //double up = SRAt.SRStyle.LastValue;
+                ////Print(Symbol.Ask);
+                //Print(unused);
 
 
+                //if (Symbol.Ask >= up)
+                //{
+                //    //    Print(Symbol.Ask);
+                //    //    Print(SRAt.SRStyle.Count);
+                //    //    Print(SRAt.SRStyle);
+                //    Print("yehey");
+                //}
+                //else
+                //{
+                //    Print("No Good");
+                //}
 
 
-
-
-                if (this.ShowExtremeHL)
-                {
-                    this.DrawExtremeHigh();
-                    this.DrawExtremeLow();
-                }
-
-                if (this.TimeFrame < TimeFrame.Daily && this.ShowDayHL)
-                {
-                    this.DrawDayHigh();
-                    this.DrawDayLow();
-                }
-            }
-        }
-
-        public void RenderSRIfRequred(double price, int count)
-        {
-            if (count < this.RequiredHits)
-            {
-                return;
             }
 
-            foreach (var range in this.zones)
-            {
-                if (price >= range.Start && price <= range.End)
-                {
-                    if (range.LinesRendered != this.MaxLinesInZone)
-                    {
-                        range.LinesRendered++;
-                        //Print(price);
-                        this.DrawSR(price);
-                    }
-                    return;
-                }
-            }
+
+
+
         }
 
-        public void AddOrUpdatePrice(double priceValue)
-        {
-            if (this.prices.ContainsKey(priceValue))
-            {
-                this.prices[priceValue]++;
-            }
-            else
-            {
-                this.prices.Add(priceValue, 1);
-            }
-        }
 
-        public void DrawExtremeHigh()
-        {
-            //Print(this.extremeHigh);
-            this.DrawExtreme(ExtremeHighName, this.extremeHigh);
-        }
 
-        public void DrawExtremeLow()
-        {
-            this.DrawExtreme(ExtremeLowName, this.extremeLow);
-        }
 
-        public void DrawDayHigh()
-        {
-            this.DrawDay(DayHighName, this.dayHi);
-        }
 
-        public void DrawDayLow()
-        {
-            this.DrawDay(DayLowName, this.dayLo);
-        }
-
-        public void DrawExtreme(string name, double level)
-        {
-            var attribute = this.GetAttributeFrom<OutputAttribute>("ExtremeHLStyle");
-            this.ChartObjects.DrawHorizontalLine(name, level, attribute.Color, attribute.Thickness, attribute.LineStyle);
-        }
-
-        public void DrawDay(string name, double level)
-        {
-            var attribute = this.GetAttributeFrom<OutputAttribute>("DayHLStyle");
-            this.ChartObjects.DrawHorizontalLine(name, level, attribute.Color, attribute.Thickness, attribute.LineStyle);
-        }
-
-        public void DrawSR(double level)
-        {
-            //Print(level);
-            var attribute = this.GetAttributeFrom<OutputAttribute>("SRStyle");
-            this.ChartObjects.DrawHorizontalLine(string.Format("SR {0}", level), level, attribute.Color, attribute.Thickness, attribute.LineStyle);
-            //stop();
-        }
-
-        public T GetAttributeFrom<T>(string propertyName)
-        {
-            var attrType = typeof(T);
-            var property = this.GetType().GetProperty(propertyName);
-            return (T)property.GetCustomAttributes(attrType, false).GetValue(0);
-        }
-
-        public class Price
-        {
-            internal double Value { get; set; }
-            internal int Count { get; set; }
-        }
-
-        public class Zone
-        {
-            internal double Start { get; set; }
-            internal double End { get; set; }
-            internal int LinesRendered { get; set; }
-        }
     }
 }
