@@ -82,7 +82,7 @@ namespace cAlgo.Robots
             int counter = 0;
             string line;
 
-            using (StreamReader sr = new StreamReader("C:/Users/David Aman/Desktop/Forex/results.log"))
+            using (StreamReader sr = new StreamReader("C:/Users/trader/Desktop/DaveCBot Log/results.log"))
             {
                 // Read the stream to a string, and write the string to the console.
 
@@ -90,6 +90,9 @@ namespace cAlgo.Robots
                 {
                     double upmin = 0;
                     double upmax = 0;
+                    double pricemin = 0;
+                    double pricemax = 0;
+
                     //bool = Checkit = false;
 
                     //line = sr.ReadLine()
@@ -97,26 +100,34 @@ namespace cAlgo.Robots
                     //call your function here
 
                     double up = Convert.ToDouble(line);
+                    pricemin = Symbol.Ask - 0.0003;
+                    pricemax = Symbol.Ask + 0.0003;
                     upmin = up - 0.0003;
                     upmax = up + 0.0003;
 
 
                     //if (Symbol.Ask == up)
 
-                    //Checkit=CheckRange(Symbol.Ask,upmin,upmax);
+                    //Checkit=CheckRange(up,upmin,upmax);
 
 
-                    if (Symbol.Ask > upmin && Symbol.Ask < upmax)
+                    //if (Symbol.Ask > upmin && Symbol.Ask < upmax)
+                    if (up > pricemin && up < pricemax)
                     {
                         //    Print(Symbol.Ask);
                         //    Print(SRAt.SRStyle.Count);
                         //    Print(SRAt.SRStyle);
+                        Print(pricemin);
+                        Print(Symbol.Ask);
+                        Print(pricemax);
+                        Print(up);
                         Print("yehey");
+
                     }
-                    else
-                    {
-                        Print("No Good");
-                    }
+                    //else
+                    //{
+                    //    Print("No Good");
+                    //}
 
                     counter++;
                 }
