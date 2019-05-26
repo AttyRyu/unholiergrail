@@ -79,6 +79,12 @@ namespace cAlgo.Robots
 
             //double valSRat = SRAt.STRAResult;
             //Print(SRAt.STRAResult);
+            double upmin;
+            double upmax;
+            double pricemin;
+            double pricemax;
+            double up;
+
             int counter = 0;
             string line;
 
@@ -88,10 +94,11 @@ namespace cAlgo.Robots
 
                 while ((line = sr.ReadLine()) != null)
                 {
-                    double upmin = 0;
-                    double upmax = 0;
-                    double pricemin = 0;
-                    double pricemax = 0;
+                    upmin = 0;
+                    upmax = 0;
+                    pricemin = 0;
+                    pricemax = 0;
+                    up = 0;
 
                     //bool = Checkit = false;
 
@@ -99,7 +106,7 @@ namespace cAlgo.Robots
                     //Print(line);
                     //call your function here
 
-                    double up = Convert.ToDouble(line);
+                    up = Convert.ToDouble(line);
                     pricemin = Symbol.Ask - 0.0003;
                     pricemax = Symbol.Ask + 0.0003;
                     upmin = up - 0.0003;
@@ -112,15 +119,16 @@ namespace cAlgo.Robots
 
 
                     //if (Symbol.Ask > upmin && Symbol.Ask < upmax)
+                    Print("before if " + up);
                     if (up > pricemin && up < pricemax)
                     {
                         //    Print(Symbol.Ask);
                         //    Print(SRAt.SRStyle.Count);
                         //    Print(SRAt.SRStyle);
                         Print(pricemin);
-                        Print(Symbol.Ask);
+                        //Print(Symbol.Ask);
                         Print(pricemax);
-                        Print(up);
+                        //Print(up);
                         Print("yehey");
 
                     }
