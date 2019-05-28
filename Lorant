@@ -1,0 +1,528 @@
+using System;
+using System.Linq;
+using cAlgo.API;
+using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
+using cAlgo.Indicators;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
+    public class DraftLorantVelocity : Robot
+    {
+        //=============================================================
+        //--User Configuration 
+
+        [Parameter("Initial Lots", DefaultValue = 1000, MinValue = 1000, Step = 1000)]
+        public int Lot_Initial { get; set; }
+
+        [Parameter("TP (Pips)", DefaultValue = 12, MinValue = 1)]
+        public int TPpips { get; set; }
+
+        [Parameter("SL (Pips)", DefaultValue = 0, MinValue = 0)]
+        public int SLpips { get; set; }
+
+        [Parameter("Wave Distance", DefaultValue = 5, MinValue = 1)]
+        public int WaveDistance { get; set; }
+
+        [Parameter("Activate AutoNuke", DefaultValue = false)]
+        public bool ActivateAutoNuke { get; set; }
+
+        [Parameter("Nuke/Alert Distance", DefaultValue = 50, MinValue = 0, Step = 10)]
+        public int NukeDistance { get; set; }
+
+        [Parameter("Autonuke Max", DefaultValue = 2, MinValue = 1, Step = 1)]
+        public int NukeMax { get; set; }
+
+        [Parameter("Email Address", DefaultValue = "meToyou@test.com")]
+        public string EmailAddress { get; set; }
+
+        [Parameter("Alert Sound File (Drive C Folder: TradeAlert)", DefaultValue = "kalembang.mp3")]
+        public string AlertSoundFile { get; set; }
+
+        int adr_period = 5;
+        string strComment = "FreeMoney_v7";
+
+        //--Licensing-------------------------------------------------------
+
+        //--Variable Declarations-------------------------------------------
+        double range_adr = 0;
+        int WaveCount = 0;
+        MarketSeries D1Series;
+        double D1OpenPrice;
+        int CurrentWaveCount_Buy = 0, CurrentWaveCount_Sell = 0;
+        int ActiveTkt_Buy = 0, ActiveTkt_Sell = 0;
+        int PendingTkt_Buy = 0, PendingTkt_Sell = 0;
+        bool OpenIsGalingNgParingProc = false;
+        bool DeleteAllOrdersNa = false;
+
+        int NukeCountctr_Buy = 0, NukeCountctr_Sell = 0;
+        int NextNukeDistance_Buy = 0, NextNukeDistance_Sell = 0;
+        int OrderIDToNuke_Buy = 0, OrderIDToNuke_Sell = 0;
+        double NukeVolume_Buy = 0, NukeVolume_Sell = 0;
+        string CheckOpenNewWave = "abc";
+        int NextAlertNuke_Buy, NextAlertNuke_Sell;
+
+
+        //--------------------------------------------------------------------------
+        protected override void OnStart()
+        {
+            //daily marketseries
+            D1Series = MarketData.GetSeries(TimeFrame.Daily);
+            D1OpenPrice = D1Series.Open.Last(0);
+
+            Positions.Opened += PositionsOnOpened;
+            //Positions.Closed += PositionsOnClosed;
+            Positions.Closed += OnPositionsClosed;
+
+            //initialize the ADR and wavecount
+            ADR5Days();
+            CalculateWaves();
+
+            //set the initial NukeDistances
+            NextNukeDistance_Buy = NukeDistance;
+            NextNukeDistance_Sell = NukeDistance;
+            NextAlertNuke_Buy = NukeDistance;
+            NextAlertNuke_Sell = NukeDistance;
+
+            if (WaveCount > 0)
+                OpenInitialOrders();
+        }
+
+        //--------------------------------------------------------------------------
+        protected override void OnTick()
+        {
+            //reset ADR everyday
+            if (D1OpenPrice != D1Series.Open.Last(0))
+            {
+                D1OpenPrice = D1Series.Open.Last(0);
+                ADR5Days();
+            }
+
+            //check if new wave should be opened
+            if (CheckOpenNewWave != "abc")
+                OpenNewWave();
+
+            //Check kung pairs (buy and sell) orders pa rin or wala ng orders
+            CheckOrderPairing();
+
+            //check orders for nuking(DP)
+            if (ActivateAutoNuke == true)
+                CheckOrdersToNuke();
+
+            //check if needs to Notify user to manually nuke(dp)
+            NotifyUser();
+
+        }
+
+        //--------------------------------------------------------------------------
+        protected override void OnStop()
+        {
+
+        }
+
+        //--------------------------------------------------------------------------
+        private void PositionsOnOpened(PositionOpenedEventArgs args)
+        {
+            var pos = args.Position;
+
+            //skipped the below codes kung galing ng pairing procedure
+            if (OpenIsGalingNgParingProc == true)
+            {
+                OpenIsGalingNgParingProc = false;
+                return;
+            }
+
+            //skipped below codes if order was opened due to nuke, use label as reference
+            if (pos.SymbolCode == Symbol.Code && pos.Comment == strComment && pos.Label == "nuke")
+                return;
+
+
+            if (pos.SymbolCode == Symbol.Code && pos.Comment == strComment)
+            {
+                if (pos.TradeType == TradeType.Buy && PendingTkt_Buy != 0)
+                {
+                    PendingTkt_Buy = 0;
+                    ActiveTkt_Buy = pos.Id;
+                    CurrentWaveCount_Buy++;
+                }
+                if (pos.TradeType == TradeType.Sell && PendingTkt_Sell != 0)
+                {
+                    PendingTkt_Sell = 0;
+                    ActiveTkt_Sell = pos.Id;
+                    CurrentWaveCount_Sell++;
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
+        private void OnPositionsClosed(PositionClosedEventArgs args)
+        {
+            //private void PositionsOnClosed(PositionClosedEventArgs args)
+            var pos = args.Position;
+
+            //if galing ng DeleteOrders procedure, skip the codes
+            if (DeleteAllOrdersNa == true)
+            {
+                DeleteAllOrdersNa = false;
+                return;
+            }
+
+            //reset the ActiveTickets
+            if (pos.SymbolCode == Symbol.Code && pos.Comment == strComment && pos.TradeType == TradeType.Buy)
+            {
+                ActiveTkt_Buy = 0;
+                if (pos.NetProfit > 0 && pos.Label == "wave")
+                    CheckOpenNewWave = "buy";
+            }
+            if (pos.SymbolCode == Symbol.Code && pos.Comment == strComment && pos.TradeType == TradeType.Sell)
+            {
+                ActiveTkt_Sell = 0;
+                if (pos.NetProfit > 0 && pos.Label == "wave")
+                    CheckOpenNewWave = "sell";
+            }
+        }
+
+        //--------------------------------------------------------------------------
+        void OpenNewWave()
+        {
+            //check kung pwede pa mag-open ng new order based sa wavecount
+            if (CheckOpenNewWave == "buy" && CurrentWaveCount_Buy < (WaveCount + 1))
+            {
+                var result1 = PlaceStopOrder(TradeType.Buy, Symbol, Lot_Initial, Symbol.Ask + (WaveDistance * Symbol.PipSize), "wave", SLpips, TPpips, null, strComment);
+                if (result1.IsSuccessful)
+                {
+                    PendingTkt_Buy = result1.PendingOrder.Id;
+                }
+            }
+            if (CheckOpenNewWave == "sell" && CurrentWaveCount_Sell < (WaveCount + 1))
+            {
+                var result1 = PlaceStopOrder(TradeType.Sell, Symbol, Lot_Initial, Symbol.Bid - (WaveDistance * Symbol.PipSize), "wave", SLpips, TPpips, null, strComment);
+                if (result1.IsSuccessful)
+                {
+                    PendingTkt_Sell = result1.PendingOrder.Id;
+                }
+            }
+
+            //reset the 
+            CheckOpenNewWave = "abc";
+
+
+        }
+
+        //--------------------------------------------------------------------------
+        void CheckOrdersToNuke()
+        {
+            double tVolume = 0;
+
+            //if NukeMax is reached on Buy or Sell, delete all orders so it can be reset
+            if (NukeCountctr_Buy == NukeMax || NukeCountctr_Sell == NukeMax)
+            {
+                //delete all orders and accept losses
+                DeleteAllOrders();
+                DelPendingOrders();
+
+                //reset nuke variables
+                NukeCountctr_Buy = 0;
+                NukeCountctr_Sell = 0;
+                NextNukeDistance_Buy = 0;
+                NextNukeDistance_Sell = 0;
+                OrderIDToNuke_Buy = 0;
+                OrderIDToNuke_Sell = 0;
+                NukeVolume_Buy = 0;
+                NukeVolume_Sell = 0;
+
+                return;
+            }
+
+            //find orders to nuke if any of these 2 variables is 0
+            if (OrderIDToNuke_Buy == 0 || OrderIDToNuke_Sell == 0)
+            {
+                foreach (var nPos in Positions)
+                {
+                    if (OrderIDToNuke_Buy == 0 && nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.Pips < 0 && (nPos.Pips * -1) >= NextNukeDistance_Buy && NukeCountctr_Buy < NukeMax)
+                        OrderIDToNuke_Buy = nPos.Id;
+                    if (OrderIDToNuke_Sell == 0 && nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.Pips < 0 && (nPos.Pips * -1) >= NextNukeDistance_Sell && NukeCountctr_Sell < NukeMax)
+                        OrderIDToNuke_Sell = nPos.Id;
+                }
+                Print("OrderIDToNuke_Buy: ", OrderIDToNuke_Buy);
+                Print("OrderIDToNuke_Sell: ", OrderIDToNuke_Sell);
+            }
+
+            //-------bbbbb
+            if (OrderIDToNuke_Buy != 0)
+            {
+                //set the volume (DP)
+                if (NukeVolume_Buy == 0)
+                {
+                    tVolume = Lot_Initial;
+                    NukeVolume_Buy = Lot_Initial + tVolume;
+                }
+                else
+                {
+                    tVolume = NukeVolume_Buy;
+                    NukeVolume_Buy += tVolume;
+                }
+                //execute nuke(DP)
+                var result1 = ExecuteMarketOrder(TradeType.Buy, Symbol, tVolume, "nuke", 0, (NukeDistance / 2) + TPpips, 0, strComment);
+                if (result1.IsSuccessful)
+                {
+                    NukeCountctr_Buy++;
+                    NextNukeDistance_Buy = NextNukeDistance_Buy + NukeDistance;
+                    //modify the TP of other negative buy orders
+                    foreach (var oPos in Positions)
+                    {
+                        if (oPos.SymbolCode == Symbol.Code && oPos.Comment == strComment && oPos.TradeType == TradeType.Buy && oPos.TakeProfit != result1.Position.TakeProfit)
+                        {
+                            ModifyPosition(oPos, null, result1.Position.TakeProfit);
+                        }
+                    }
+                }
+            }
+            //-------bbbbbb
+            //-------ssssss
+            if (OrderIDToNuke_Sell != 0)
+            {
+                //set the volume (DP)
+                if (NukeVolume_Sell == 0)
+                {
+                    tVolume = Lot_Initial;
+                    NukeVolume_Sell = Lot_Initial + tVolume;
+                }
+                else
+                {
+                    tVolume = NukeVolume_Sell;
+                    NukeVolume_Sell += tVolume;
+                }
+                //execute nuke(DP)
+                var result1 = ExecuteMarketOrder(TradeType.Sell, Symbol, tVolume, "nuke", 0, (NukeDistance / 2) - TPpips, 0, strComment);
+                if (result1.IsSuccessful)
+                {
+                    NukeCountctr_Sell++;
+                    NextNukeDistance_Sell = NextNukeDistance_Sell + NukeDistance;
+                    //modify the TP of other negative sell orders
+                    foreach (var oPos in Positions)
+                    {
+                        if (oPos.SymbolCode == Symbol.Code && oPos.Comment == strComment && oPos.TradeType == TradeType.Sell && oPos.TakeProfit != result1.Position.TakeProfit)
+                        {
+                            ModifyPosition(oPos, null, result1.Position.TakeProfit);
+                        }
+                    }
+                }
+            }
+            //-------ssssss
+
+        }
+
+        //--------------------------------------------------------------------------
+        void DeleteAllOrders()
+        {
+            DeleteAllOrdersNa = true;
+            foreach (var openPos in Positions)
+            {
+                if (openPos.SymbolCode == Symbol.Code && openPos.Comment == strComment)
+                {
+                    ClosePosition(openPos);
+                }
+            }
+
+            foreach (var pPos in PendingOrders)
+            {
+                if (pPos.SymbolCode == Symbol.Code && pPos.Comment == strComment)
+                {
+                    CancelPendingOrder(pPos);
+                }
+            }
+        }
+
+        //--------------------------------------------------------------------------
+        void CheckOrderPairing()
+        {
+            int BuyOrderctr = 0, SellOrderctr = 0;
+            double BuyPrice = 0, SellPrice = 0;
+            //conditions: wave order na nag-iisa so reset lahat
+            //1: count the number of open buy and sell na waves and log its price
+            foreach (var oPos in Positions)
+            {
+                if (oPos.SymbolCode == Symbol.Code && oPos.Comment == strComment && oPos.TradeType == TradeType.Buy)
+                {
+                    BuyOrderctr++;
+                    BuyPrice = oPos.EntryPrice;
+                }
+                if (oPos.SymbolCode == Symbol.Code && oPos.Comment == strComment && oPos.TradeType == TradeType.Sell)
+                {
+                    SellOrderctr++;
+                    SellPrice = oPos.EntryPrice;
+                }
+            }
+
+            //2: kung nag-iisa lang yung order and Ask/Bid tumatama sa price nya, reset all var, delete pending orders
+            if (BuyOrderctr == 1 && SellOrderctr == 0 && (BuyPrice <= Symbol.Ask && BuyPrice >= Symbol.Bid))
+            {
+                //nagiisa buy wala na sell, execute a sell
+                bool SellExecutedNa = false;
+                while (SellExecutedNa == false)
+                {
+                    var result2 = ExecuteMarketOrder(TradeType.Sell, Symbol, Lot_Initial, "wave", SLpips, TPpips, 0, strComment);
+                    if (result2.IsSuccessful)
+                    {
+                        SellExecutedNa = true;
+                        ActiveTkt_Sell = result2.Position.Id;
+                        CurrentWaveCount_Sell = 1;
+                        //reset buy wavecount
+                        CurrentWaveCount_Buy = 1;
+                        //delete pending orders if there's any
+                        DelPendingOrders();
+                        OpenIsGalingNgParingProc = true;
+                    }
+                }
+            }
+            if (BuyOrderctr == 0 && SellOrderctr == 1 && (SellPrice <= Symbol.Ask && SellPrice >= Symbol.Bid))
+            {
+                //nagiisa sell wala na buy, execute a buy
+                bool BuyExecutedNa = false;
+                while (BuyExecutedNa == false)
+                {
+                    var result2 = ExecuteMarketOrder(TradeType.Buy, Symbol, Lot_Initial, "wave", SLpips, TPpips, 0, strComment);
+                    if (result2.IsSuccessful)
+                    {
+                        BuyExecutedNa = true;
+                        ActiveTkt_Buy = result2.Position.Id;
+                        CurrentWaveCount_Buy = 1;
+                        //reset sell wavecount
+                        CurrentWaveCount_Sell = 1;
+                        //delete pending orders if there's any
+                        DelPendingOrders();
+                        OpenIsGalingNgParingProc = true;
+                    }
+                }
+            }
+
+            //kung wala na talagang open orders both sides
+            if (BuyOrderctr == 0 && SellOrderctr == 0)
+            {
+                //reset the variables
+                CurrentWaveCount_Buy = 0;
+                CurrentWaveCount_Sell = 0;
+
+                //clear for pending orders
+                DelPendingOrders();
+
+                //recalculate the waves
+                CalculateWaves();
+
+                //call the OpenInitialOrders
+                OpenInitialOrders();
+            }
+        }
+
+        //--------------------------------------------------------------------------
+        void DelPendingOrders()
+        {
+            foreach (var pendPos in PendingOrders)
+            {
+                if (pendPos.SymbolCode == Symbol.Code && pendPos.Comment == strComment)
+                    CancelPendingOrder(pendPos);
+            }
+            //reset pending tkt vars
+            PendingTkt_Buy = 0;
+            PendingTkt_Sell = 0;
+        }
+        //--------------------------------------------------------------------------
+        void OpenInitialOrders()
+        {
+            bool BuyExecutedNa = false, SellExecutedNa = false;
+
+            //***Execute the initial orders of the day for GU
+            while (BuyExecutedNa == false)
+            {
+                var result1 = ExecuteMarketOrder(TradeType.Buy, Symbol, Lot_Initial, "wave", SLpips, TPpips, 0, strComment);
+                if (result1.IsSuccessful)
+                {
+                    BuyExecutedNa = true;
+                    ActiveTkt_Buy = result1.Position.Id;
+                    CurrentWaveCount_Buy++;
+                }
+            }
+
+            while (SellExecutedNa == false)
+            {
+                var result2 = ExecuteMarketOrder(TradeType.Sell, Symbol, Lot_Initial, "wave", SLpips, TPpips, 0, strComment);
+                if (result2.IsSuccessful)
+                {
+                    SellExecutedNa = true;
+                    ActiveTkt_Sell = result2.Position.Id;
+                    CurrentWaveCount_Sell++;
+                }
+            }
+        }
+        //--------------------------------------------------------------------------
+        void CalculateWaves()
+        {
+            if (range_adr <= 59)
+                WaveCount = 2;
+            if (range_adr > 59 && range_adr <= 69)
+                WaveCount = 3;
+            if (range_adr > 69 && range_adr <= 99)
+                WaveCount = 4;
+            if (range_adr > 99)
+                WaveCount = 5;
+        }
+
+        //--------------------------------------------------------------------------
+        void ADR5Days()
+        {
+            double Ra = 0;
+            int RaP = adr_period;
+            for (int i = 0; i < RaP; i++)
+            {
+                Ra = Ra + (D1Series.High.Last(i) - D1Series.Low.Last(i)) / Symbol.PipSize;
+            }
+            Ra = ((Ra / RaP) + 1);
+            //Add "1" to balance excessive rounding down  
+            range_adr = Ra;
+        }
+
+        //--------------------------------------------------------------------------
+        void NotifyUser()
+        {
+            string txtTradeType = "abc";
+            int txtNukePips = 0;
+
+            foreach (var nPos in Positions)
+            {
+                if (nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.TradeType == TradeType.Buy && nPos.Pips <= (NextAlertNuke_Buy * -1))
+                {
+                    txtNukePips = NextAlertNuke_Buy;
+                    txtTradeType = "Buy";
+                    NextAlertNuke_Buy += NukeDistance;
+                }
+                if (nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.TradeType == TradeType.Sell && nPos.Pips <= (NextAlertNuke_Sell * -1))
+                {
+                    txtNukePips = NextAlertNuke_Sell;
+                    txtTradeType = "Sell";
+                    NextAlertNuke_Sell += NukeDistance;
+                }
+            }
+
+            if (txtTradeType != "abc")
+            {
+                string pSymbol = Symbol.Code.ToString();
+                Notifications.SendEmail(EmailAddress, EmailAddress, "ALERT: NUKE TIME-" + pSymbol + "(" + txtTradeType + "@" + txtNukePips.ToString() + "pips)", "ALERT: NUKE TIME-" + pSymbol + "(" + txtTradeType + "@" + txtNukePips.ToString() + "pips)");
+                Notifications.PlaySound("C:\\TradeAlert\\" + AlertSoundFile);
+                //Notifications.PlaySound("C:\\test\\Kalimba.mp3");
+            }
+
+            //search the positions ulit kasi baka may namanual nukeDP na para mareset yung nextAlert variables
+            foreach (var nPos in Positions)
+            {
+                if (nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.TradeType == TradeType.Buy && nPos.Pips <= ((NukeDistance - (NukeDistance / 2)) * -1))
+                    NextAlertNuke_Buy = NukeDistance;
+                if (nPos.SymbolCode == Symbol.Code && nPos.Comment == strComment && nPos.TradeType == TradeType.Sell && nPos.Pips <= ((NukeDistance - (NukeDistance / 2)) * -1))
+                    NextAlertNuke_Sell = NukeDistance;
+            }
+        }
+
+        //====================================================
+    }
+}
