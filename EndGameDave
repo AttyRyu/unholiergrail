@@ -12,6 +12,13 @@ namespace cAlgo.Robots
     [Robot(TimeZone = TimeZones.SingaporeStandardTime, AccessRights = AccessRights.FullAccess)]
     public class EndGamewithUnholyGrail : Robot
     {
+    
+    [Parameter("Folder Path", DefaultValue = "C:/Users/trader/Desktop/DaveCBot Log/")]
+        public string Folderpath { get; set; }
+    
+    [Parameter("Filename", DefaultValue = "results.log")]
+        public string Filename { get; set; }
+    
         [Parameter("Stop Loss (pips)", DefaultValue = 40000)]
         public int StopLossInPips { get; set; }
 
@@ -113,10 +120,14 @@ namespace cAlgo.Robots
             double up;
             int counter = 0;
             string line;
+            string fullpath = "";
+            fullpath = Folderpath+Filename
+            Print (fullpath);
 
-            using (StreamReader sr = new StreamReader("C:/Users/trader/Desktop/DaveCBot Log/results.log"))
+            using (StreamReader sr = new StreamReader(fullpath))
             {
                 while ((line = sr.ReadLine()) != null)
+                
                 {
                     upmin = 0;
                     upmax = 0;
