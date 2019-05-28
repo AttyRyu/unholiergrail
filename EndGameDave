@@ -1,0 +1,308 @@
+using System;
+using System.Linq;
+using cAlgo.API;
+using cAlgo.API.Indicators;
+using cAlgo.API.Internals;
+using cAlgo.Indicators;
+using System.Collections;
+using System.IO;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.SingaporeStandardTime, AccessRights = AccessRights.FullAccess)]
+    public class EndGamewithUnholyGrail : Robot
+    {
+        [Parameter("Stop Loss (pips)", DefaultValue = 40000)]
+        public int StopLossInPips { get; set; }
+
+        [Parameter("Stop Loss to Nuke (negative pips)", DefaultValue = -70)]
+        public int StopLosstoNuke { get; set; }
+
+        [Parameter("Back-up Nuke (negative pips)", DefaultValue = -70)]
+        public int BackupNuke { get; set; }
+
+        [Parameter("Take Profit (pips)", DefaultValue = 12)]
+        public int TakeProfitInPips { get; set; }
+
+        [Parameter("Limit Range", DefaultValue = 3)]
+        public int LimitRange { get; set; }
+
+        [Parameter("How Many Waves?", DefaultValue = 5)]
+        public int Waves { get; set; }
+
+        [Parameter("SL Trigger Pips", DefaultValue = 100)]
+        public int WaveInterval { get; set; }
+
+        [Parameter("Protective SL Add Pips", DefaultValue = 100)]
+        public int PSLAddPips { get; set; }
+
+        [Parameter("Volume", DefaultValue = 5000)]
+        //5K every 1K one pair only
+        public int Volume { get; set; }
+
+        [Parameter("Wave Pip Interval 1", DefaultValue = 15)]
+        public int WaveInterval1 { get; set; }
+
+        [Parameter("Wave Allowance", DefaultValue = -16)]
+        public int WaveAllowance { get; set; }
+
+        [Parameter("Nuke TP", DefaultValue = 28)]
+        public double FirstNukeTP { get; set; }
+
+        [Parameter("Volume Multiplier", DefaultValue = 16)]
+        public int VolumeMultiplier { get; set; }
+
+        [Parameter("Limit Volume Multiplier", DefaultValue = 16)]
+        public int LimitVolumeMultiplier { get; set; }
+
+        [Parameter("Stop Out Percent", DefaultValue = 50)]
+        public int StopOutPercent { get; set; }
+
+//indicator parameters
+        [Parameter("Periods", DefaultValue = 10000)]
+        public int Periods { get; set; }
+
+        [Parameter("Show Extreme H/L", DefaultValue = true)]
+        public bool ShowExtremeHL { get; set; }
+
+        [Parameter("Show Day H/L", DefaultValue = true)]
+        public bool ShowDayHL { get; set; }
+
+        [Parameter("Required Hits", DefaultValue = 1)]
+        public int RequiredHits { get; set; }
+
+        [Parameter("Zone Size", DefaultValue = 33)]
+        public int ZoneSize { get; set; }
+
+        [Parameter("Max Lines In Zone", DefaultValue = 1)]
+        public int MaxLinesInZone { get; set; }
+
+        private SRAtPrice SRAt;
+
+//end of indicator parameters
+
+        protected override void OnStart()
+        {
+            SRAt = Indicators.GetIndicator<SRAtPrice>(Periods, ShowExtremeHL, ShowDayHL, RequiredHits, ZoneSize, MaxLinesInZone);
+            //Nuking Reference
+            Positions.Closed += OnPositionsClosed;
+            //End of Nuking Reference
+        }
+        protected override void OnBar()
+        {
+//holy grail
+            if ((Positions.Find("", Symbol, TradeType.Buy) == null) && (Positions.Find("", Symbol, TradeType.Sell) == null) && (Positions.Find("Nuclear", Symbol, TradeType.Buy) == null) && (Positions.Find("Nuclear", Symbol, TradeType.Sell) == null) && (Server.Time.Hour != 3) && (Server.Time.Hour != 4) && (Server.Time.Hour != 5) && (Server.Time.Hour != 6) && (Server.Time.Hour != 7) && (Server.Time.Hour != 8))
+            {
+                CancelPendingOrders();
+                CreateWaves1(TradeType.Buy);
+                CreateWaves1(TradeType.Sell);
+                Print("Refresh");
+
+            }
+            //end of holy grail
+        }
+
+        protected override void OnTick()
+        {
+
+
+
+            ////nuking at key zone, buy first
+            double upmin;
+            double upmax;
+            double up;
+            int counter = 0;
+            string line;
+
+            using (StreamReader sr = new StreamReader("C:/Users/trader/Desktop/DaveCBot Log/results.log"))
+            {
+                while ((line = sr.ReadLine()) != null)
+                {
+                    upmin = 0;
+                    upmax = 0;
+                    up = 0;
+                    up = Convert.ToDouble(line);
+                    upmin = up - 0.00015;
+                    upmax = up + 0.00015;
+                    foreach (var position in Positions)
+                    {
+                        if ((position.Pips <= StopLosstoNuke) && (Symbol.Bid >= upmin && Symbol.Bid <= upmax) && (position.TradeType == TradeType.Buy) && (position.SymbolCode == Symbol.Code))
+                        {
+                            ClosePosition(position);
+                            Print("CloseKeyZone");
+                        }
+                        if ((position.Pips <= StopLosstoNuke) && (Symbol.Ask >= upmin && Symbol.Ask <= upmax) && (position.TradeType == TradeType.Sell) && (position.SymbolCode == Symbol.Code))
+                        {
+                            ClosePosition(position);
+                            Print("CloseKeyZone");
+                        }
+                        if ((position.Pips <= BackupNuke) && (position.SymbolCode == Symbol.Code))
+                        {
+                            ClosePosition(position);
+                            Print("BakupClose");
+                        }
+                        if ((position.Pips <= BackupNuke) && (position.SymbolCode == Symbol.Code))
+                        {
+                            ClosePosition(position);
+                            Print("BakupClose");
+                        }
+                    }
+                    counter++;
+                }
+
+                ////end of nking at key zone
+                while (Account.MarginLevel <= StopOutPercent)
+                {
+                    ClosePosition(Positions.OrderByDescending(x => x.GrossProfit).Last());
+                    CancelPendingOrders();
+                    Print("Closed due to Lack of Margin");
+
+                }
+//equity return to %% of balance logic
+                //if (Account.Equity <= 0.6 * Account.Balance)
+                //{
+                //  if (Account.Equity >= 0.65 * Account.Balance)
+                //  {
+                //        foreach (var position in Positions)
+                //         {
+//            ClosePositionAsync(position);
+                //              CancelPendingOrders();
+                //            Print("yehey");
+                //         }
+                //     }
+                // }
+//equity return to %% of balance logic
+
+//            if (Account.Equity <= 0.9 * Account.Balance)
+                //          {
+                //              Stop();
+                //          }
+//NetProfit and NetLoss Close Logic
+//                var netProfit = 0.0;
+                // foreach (var openedPosition in Positions)
+                // {
+                //     netProfit += openedPosition.NetProfit;
+                // }
+                // if ((netProfit <= NetLossClose))
+                // {
+                //     foreach (var position in Positions)
+                //     {
+                //         ClosePositionAsync(position);
+                //         CancelPendingOrders();
+                //     }
+                // }
+                // if ((netProfit >= NetProfitClose))
+                // {
+                //     foreach (var position in Positions)
+                //     {
+                //         ClosePositionAsync(position);
+                //         CancelPendingOrders();
+                //     }
+                // }
+//End of NetProfit and NetLoss Close Logic
+                foreach (Position OpenPosition in Positions.FindAll("", Symbol))
+                {
+                    double ProtectiveStopPrice = GetProtectiveStopPrice(OpenPosition);
+
+                    if (ProtectiveStopPrice > 0)
+                    {
+                        Print("Moved ProtectiveStopLoss to: " + ProtectiveStopPrice);
+                        ModifyPosition(OpenPosition, ProtectiveStopPrice, OpenPosition.TakeProfit);
+                    }
+                }
+            }
+        }
+
+        private void CreateWaves1(TradeType type)
+        {
+            double TargetPrice = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+            double TargetPrice1 = type == TradeType.Buy ? Symbol.Ask : Symbol.Bid;
+            for (int i = 0; i < Waves; i++)
+            {
+                TargetPrice = type == TradeType.Buy ? TargetPrice + WaveInterval1 * Symbol.PipSize : TargetPrice - WaveInterval1 * Symbol.PipSize;
+                TargetPrice1 = type == TradeType.Buy ? TargetPrice + WaveAllowance * Symbol.PipSize : TargetPrice - WaveAllowance * Symbol.PipSize;
+                PlaceStopLimitOrderAsync(type, Symbol, Volume, TargetPrice1, LimitRange, "", StopLossInPips, TakeProfitInPips, null);
+            }
+        }
+        //nuking logic
+        private void ExecuteOrder(double quantity, TradeType tradeType)
+        {
+            var volumeInUnits = Symbol.QuantityToVolumeInUnits(quantity);
+//            var volumeInUnits = Symbol.VolumeInUnitsToQuantity(quantity);
+            var result = ExecuteMarketOrder(tradeType, Symbol, volumeInUnits, "Nuclear", StopLossInPips, FirstNukeTP - 3);
+
+            if (result.Error == ErrorCode.NoMoney)
+                Stop();
+        }
+        private void OnPositionsClosed(PositionClosedEventArgs args)
+        {
+            Print("Closed");
+            var position = args.Position;
+
+            if ((position.VolumeInUnits < Volume * LimitVolumeMultiplier) && (position.GrossProfit < 0))
+            {
+                ExecuteOrder(position.Quantity * Math.Round((position.Pips * -1 * Symbol.PipSize) / (FirstNukeTP * Symbol.PipSize)), position.TradeType);
+                Print("pips " + position.Pips);
+                Print("New Quantity " + position.Quantity * Math.Round((position.Pips * -1 * Symbol.PipSize) / (FirstNukeTP * Symbol.PipSize)));
+                Print("Nuclear Protocol Initiated");
+            }
+            if ((position.VolumeInUnits >= Volume * LimitVolumeMultiplier) && (position.GrossProfit < 0))
+            {
+                Print("Nuclear Protocol Halted");
+            }
+            //if ((position.VolumeInUnits > Volume) && (position.GrossProfit > 4))
+            //{
+            //    ClosePositionAsync(position);
+            //    CancelPendingOrders();
+            //    Print("WW3 Averted");
+            //}
+        }
+        //end of nuking logic
+        private void CancelPendingOrders()
+        {
+            foreach (var order in PendingOrders)
+            {
+                if (order.SymbolCode == Symbol.Code)
+                {
+                    CancelPendingOrder(order);
+                }
+            }
+        }
+        private double GetProtectiveStopPrice(Position OpenPosition)
+        {
+            double PipGain = OpenPosition.TradeType == TradeType.Buy ? (Symbol.Ask - OpenPosition.EntryPrice) / Symbol.PipSize : (OpenPosition.EntryPrice - Symbol.Bid) / Symbol.PipSize;
+            int Milestone = (int)(PipGain % WaveInterval);
+
+            for (int i = 0; i < 2 && Milestone > 0; i++)
+            {
+                if (PipGain >= WaveInterval * Milestone)
+                {
+                    double ProtectiveStopSize = (((Milestone - 1) * WaveInterval) + PSLAddPips) * Symbol.PipSize;
+
+                    if (OpenPosition.TradeType == TradeType.Buy)
+                    {
+                        double ProtectiveStopPrice = OpenPosition.EntryPrice + ProtectiveStopSize;
+
+                        if (OpenPosition.StopLoss == null || OpenPosition.StopLoss < ProtectiveStopPrice)
+                        {
+                            return ProtectiveStopPrice;
+                        }
+                    }
+                    else if (OpenPosition.TradeType == TradeType.Sell)
+                    {
+                        double ProtectiveStopPrice = OpenPosition.EntryPrice - ProtectiveStopSize;
+
+                        if (OpenPosition.StopLoss == null || OpenPosition.StopLoss > ProtectiveStopPrice)
+                        {
+                            return ProtectiveStopPrice;
+                        }
+                    }
+                }
+
+                Milestone--;
+            }
+
+            return 0;
+        }
+    }
+}
