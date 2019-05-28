@@ -121,7 +121,7 @@ namespace cAlgo
 
 
 
-                using (StreamWriter outputFile = new StreamWriter("C:/Users/David Aman/Desktop/Forex/results.log"))
+                using (StreamWriter outputFile = new StreamWriter("C:/Users/trader/Desktop/DaveCBot Log/results.log"))
                 {
 
                     foreach (var itm in myStack)
